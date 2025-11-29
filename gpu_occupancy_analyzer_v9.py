@@ -20,7 +20,7 @@ class GPUOccupancyAnalyzer:
         self.stats = {}
         self.occupancy_data = {}
 
-        # GPU architecture parameters (adjustable based on your GPU model)
+        # GPU architecture parameters
         self.gpu_config = {
             'max_warps_per_sm': 40,      # Maximum warps per SM (typical for modern GPUs)
             'warp_size': 64,             # AMD wavefront size (64) vs NVIDIA warp size (32)
@@ -41,7 +41,7 @@ class GPUOccupancyAnalyzer:
             print(f"Error: Stats file not found at {self.stats_file}")
             return False
 
-        # Parse stats using regex patterns
+        # Parse stats using regex patterns... changed original regex to include the chars after the :: as well
         #pattern = r'^([a-zA-Z0-9_.]+)\s+([0-9.e+-]+)(?:\s+#\s*(.*))?$'
         pattern = r'^([a-zA-Z0-9_.:]+)\s+([0-9.e+-]+)(?:\s+#\s*(.*))?$'
 
@@ -84,7 +84,6 @@ class GPUOccupancyAnalyzer:
         total_wfs = self._get_total_wavefronts()
         total_wgs = self._get_total_workgroups()
         
-        # If we can't infer geometry, bail out
         if not total_wfs or not total_wgs:
             return occupancy_metrics
 
@@ -142,7 +141,6 @@ class GPUOccupancyAnalyzer:
         busy_cycles = self._get_busy_cycles()
         
         
-
         if total_cycles and active_cycles:
             cycle_occupancy = (active_cycles / total_cycles) * 100
             achieved_metrics['Cycle-based Occupancy (%)'] = cycle_occupancy
@@ -183,7 +181,7 @@ class GPUOccupancyAnalyzer:
             active_waves_means.append(mean_waves)
 
         if not active_waves_means:
-            return metrics  # nothing found
+            return metrics  
 
         # Average over CUs
         avg_active_waves = sum(active_waves_means) / len(active_waves_means)
@@ -296,7 +294,7 @@ class GPUOccupancyAnalyzer:
         total_wfs = 0
         found = False
         for stat_name, stat_data in self.stats.items():
-            # e.g. system.cpu3.CUs0.completedWfs, system.cpu3.CUs1.completedWfs, ...
+            #sum over CUs
             if 'completedwfs' in stat_name.lower():
                 total_wfs += stat_data['value']
                 found = True
@@ -307,7 +305,6 @@ class GPUOccupancyAnalyzer:
         total_wgs = 0
         found = False
         for stat_name, stat_data in self.stats.items():
-            # e.g. system.cpu3.CUs0.completedWGs, system.cpu3.CUs1.completedWGs, ...
             if 'completedwgs' in stat_name.lower():
                 total_wgs += stat_data['value']
                 found = True
@@ -321,12 +318,11 @@ class GPUOccupancyAnalyzer:
 
         for stat_name, stat_data in self.stats.items():
             name = stat_name.lower()
-            # Restrict to GPU CUs' ExecStage cycle counters
             if ".cus" in name and "execstage.numcycleswithnoissue" in name:
                 total_cycles += stat_data["value"]
                 found = True
             elif ".cus" in name and "execstage.numcycleswithinstrissued" in name and "::" not in name:
-                # Only the aggregate 'numCyclesWithInstrIssued', skip type-specific ones
+               
                 total_cycles += stat_data["value"]
                 found = True
 
@@ -346,7 +342,7 @@ class GPUOccupancyAnalyzer:
         return active_cycles if found else None
   
     def _get_busy_cycles(self):
-        """GPU busy cycles; for ExecStage this is the same as active cycles."""
+        """GPU busy cycles; for ExecStage this is the same as active cycles. This may be differnt in CUDA stats file, but may need to find a different way for ROCm"""
         return self._get_active_cycles()
   
     
@@ -406,7 +402,7 @@ class GPUOccupancyAnalyzer:
             metrics["Instructions Per Cycle (avg per CU)"] = ipc_avg
 
             # IPC-based occupancy vs per-CU theoretical max
-            theoretical_max_ipc_per_cu = 1.0  # your assumed peak IPC per CU
+            theoretical_max_ipc_per_cu = 1.0  #assumed peak IPC per CU
             ipc_occupancy = (ipc_avg / theoretical_max_ipc_per_cu) * 100.0
             metrics["IPC-based Occupancy (%)"] = min(ipc_occupancy, 100.0)
 
@@ -471,10 +467,6 @@ class GPUOccupancyAnalyzer:
         # Collect DRAM read/write byte totals
         for stat_name, stat_data in self.stats.items():
             lname = stat_name.lower()
-
-            # Example names:
-            #   system.mem_ctrls.dram.bytesRead::total
-            #   system.mem_ctrls.dram.bytesWritten::total
             if "mem_ctrls" in lname and "dram.bytesread::total" in lname:
                 dram_read_bytes += stat_data["value"]
             elif "mem_ctrls" in lname and "dram.byteswritten::total" in lname:
@@ -484,9 +476,9 @@ class GPUOccupancyAnalyzer:
         memory_bytes = dram_read_bytes + dram_write_bytes
         print("memory_bytes: "+str(memory_bytes))
         if memory_bytes <= 0:
-            return metrics  # no DRAM traffic recorded
+            return metrics  # no DRAM usage recorded
 
-        # Get simulation time in seconds
+        # Get sim time in seconds
         sim_time = None
         for stat_name, stat_data in self.stats.items():
             lname = stat_name.lower()
@@ -500,7 +492,7 @@ class GPUOccupancyAnalyzer:
         # Actual DRAM bandwidth in GB/s
         actual_bandwidth_gbps = memory_bytes / sim_time / (1024 ** 3)
 
-        # Peak bandwidth is a model/config knob
+        # Peak bandwidth is a config knob
         peak_bandwidth_gbps = self.gpu_config.get("peak_mem_bandwidth_gbps", 900.0) #changed from 900 due to simulated hardware
 
         if peak_bandwidth_gbps and peak_bandwidth_gbps > 0.0:
@@ -682,7 +674,6 @@ class GPUOccupancyAnalyzer:
         # Add value labels on bars
         for bar, value in zip(bars, metrics_values):
             height = bar.get_height()
-            # Put very tall bars’ labels just *inside* the bar to avoid touching the top
             if height > 95:
                 y = height - 5
                 color = 'white'
@@ -706,10 +697,8 @@ class GPUOccupancyAnalyzer:
 
         # Pie chart of occupancy distribution
         if len(metrics_values) > 1:
-            # Normalize values for pie chart (avoid zeros)
             normalized_values = [max(v, 1e-3) for v in metrics_values]
 
-            # Custom autopct: hide labels for very small slices (< 3%)
             def autopct_hide_small(pct):
                 return f'{pct:.1f}%' if pct >= 3 else ''
 
@@ -721,10 +710,10 @@ class GPUOccupancyAnalyzer:
                 pctdistance=0.75
             )
 
-            # Make pie look nicer / less cramped
+            # Make pie look nicer
             ax2.axis('equal')  # Equal aspect ratio -> circle
 
-            # Tweak font sizes so labels don't collide as much
+            # adjusting font sizes so labels don't overlap as much
             for t in texts:
                 t.set_fontsize(8)
             for t in autotexts:

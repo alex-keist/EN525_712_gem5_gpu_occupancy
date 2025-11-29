@@ -1,25 +1,3 @@
-/*
-Copyright (c) 2015-2016 Advanced Micro Devices, Inc. All rights reserved.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-*/
-
 #include <iostream>
 #include <cstdlib>
 #include <cmath>
@@ -34,8 +12,6 @@ THE SOFTWARE.
 #define THREADS_PER_BLOCK_Y  4
 #define THREADS_PER_BLOCK_Z  1
 
-// Device (Kernel) function, it must be void
-// hipLaunchParm provides the execution configuration
 __global__ void matrixTranspose(float *out,
                                 float *in,
                                 const int width)
@@ -75,7 +51,6 @@ int main(int argc, char** argv) {
 
   std::cout << "Device name " << devProp.name << std::endl;
 
-  // Runtime-configurable parameters with defaults from macros
   int width  = WIDTH;
   int blockX = THREADS_PER_BLOCK_X;
   int blockY = THREADS_PER_BLOCK_Y;

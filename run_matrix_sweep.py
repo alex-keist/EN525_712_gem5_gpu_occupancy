@@ -3,7 +3,7 @@ import subprocess
 from pathlib import Path
 
 def main():
-    # Path to repo root (this script should live in the repo root)
+    # Path to repo root (assume script exists in repo root)
     root = Path(__file__).resolve().parent
 
     # Docker image to use
@@ -33,7 +33,7 @@ def main():
 
         outdir.mkdir(parents=True, exist_ok=True)
 
-        # 1) Run gem5 inside docker with a unique outdir
+        # run gem5 inside docker with a unique outdir
         gem5_cmd = [
             "docker", "run", "--rm",
             "-v", f"{root}:{root}",
@@ -56,7 +56,7 @@ def main():
             print(f"[!] WARNING: {stats_path} not found, skipping analysis for {run_name}")
             continue
 
-        # 2) Run the occupancy analyzer for this run
+        # run the occupancy analyzer for this run
         print("[*] Analyzing stats...")
         analyzer_script = root / "analyzer_dir/gpu_occupancy_analyzer_v9.py"
         analyzer_cmd = [
@@ -65,7 +65,7 @@ def main():
             str(stats_path)
         ]
 
-        # Run analyzer with cwd=outdir so JSON/PNG land in that directory
+        # run analyzer with cwd=outdir so the generated image lands in that directory
         subprocess.run(analyzer_cmd, check=True, cwd=outdir)
 
         print(f"[✓] Done with {run_name}\n")
