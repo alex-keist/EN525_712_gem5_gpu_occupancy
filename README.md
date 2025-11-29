@@ -5,11 +5,13 @@ This repo does not have the resources for setting up the Gem5 environment. Info 
 
 Here are the commands from the module 6 discussion instructions for running one of the HIP samples:
 
+```
 docker pull ghcr.io/gem5/gcn-gpu:v24-0
 cd gem5-resources/src/gpu/hip-samples
 docker run --rm -v ${PWD}:${PWD} -w ${PWD} ghcr.io/gem5/gcn-gpu:v24-0 make
 cd /workspaces/intro-to-gem5-alex-keist
 docker run --volume $(pwd):$(pwd) -w $(pwd) ghcr.io/gem5/gcn-gpu:v24-0 gem5/build/VEGA_X86/gem5.opt gem5/configs/example/apu_se.py -n 3 --gfx-version=gfx902 -c gem5-resources/src/gpu/hip-samples/bin/MatrixTranspose
+```
 
 Put the MatrixTranspose_configurable.cpp file in the hip-samples folder and then run the make command to have the binary included in the hip-samples/bin directory
 Place the gpu occupancy analyzer script in a ~/analyzer_dir directory, or if placed in a different location, adjust the path in the run_matrix_sweep script to reflect the new path to the analyzer
